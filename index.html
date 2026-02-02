@@ -430,7 +430,10 @@
         <div class="qcm-card" id="qcmCard">
             <div class="qcm-header">
                 <span class="qcm-title">🧠 Micro-Apprentissage</span>
-                <span class="qcm-score">Score: <span id="qcmTotalScore">0</span> pts</span>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <button onclick="regenererQuiz()" style="background:transparent; border:1px solid #8a2be2; color:#8a2be2; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.65rem;" title="Nouvelle question">🔄</button>
+                    <span class="qcm-score">Score: <span id="qcmTotalScore">0</span> pts</span>
+                </div>
             </div>
             <div id="qcmContent"></div>
         </div>
@@ -452,9 +455,15 @@
             <div style="display:flex; gap:10px; margin-top:10px"><input type="text" id="tIn" placeholder="Nouvel objectif..." style="margin:0"><button class="btn" onclick="addT()" style="width:60px">+</button></div>
         </div>
         <div class="card">
-            <span class="label">Sagesse ELITE</span>
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span class="label">Sagesse ELITE</span>
+                <button onclick="regenererMot()" style="background:transparent; border:1px solid var(--neon); color:var(--neon); padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.65rem;" title="Nouveau mot">🔄</button>
+            </div>
             <p id="mTxt" style="font-size: 0.85rem; color: #ccc; margin: 10px 0;"></p>
-            <div id="qBox" style="border-left: 2px solid var(--blue); padding-left: 12px; font-style: italic; color: #777; font-size: 0.8rem;"></div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div id="qBox" style="border-left: 2px solid var(--blue); padding-left: 12px; font-style: italic; color: #777; font-size: 0.8rem; flex:1;"></div>
+                <button onclick="regenererCitation()" style="background:transparent; border:1px solid var(--blue); color:var(--blue); padding:6px 10px; border-radius:8px; cursor:pointer; font-size:0.7rem; white-space:nowrap;" title="Nouvelle citation">🔄 Nouvelle</button>
+            </div>
         </div>
         
         <button class="btn" onclick="openDailyWrap()" style="background:var(--blue); margin-bottom:15px; width:100%;">Terminer la journée</button>
@@ -498,6 +507,232 @@
 <script>
     const FOOD_DB = { "poulet": {p: 27, c: 165, unit: 'g'}, "poisson": {p: 22, c: 120, unit: 'g'}, "saumon": {p: 20, c: 200, unit: 'g'}, "saucisse": {p: 12, c: 250, unit: 'u'}, "oeuf": {p: 6, c: 70, unit: 'u'}, "steak": {p: 25, c: 250, unit: 'g'}, "carotte": {p: 1, c: 40, unit: 'u'}, "courgette": {p: 1.2, c: 17, unit: 'u'}, "poivron": {p: 1, c: 30, unit: 'u'}, "skyr": {p: 10, c: 60, unit: 'g'}, "riz": {p: 3, c: 130, unit: 'g'}, "shaker": {p: 25, c: 120, unit: 'u'} };
     const MOTIVATION = ["La discipline est la mère du succès.", "N'arrête pas quand tu es fatigué, arrête quand tu as fini.", "Le corps accomplit ce que l'esprit croit.", "Sois plus fort que tes excuses."];
+
+    // ===== GÉNÉRATEUR DE CITATION IA =====
+    let dailyQuoteCache = null;
+    let lastQuoteDate = null;
+
+    async function genererCitationIA() {
+        const today = new Date().toDateString();
+        
+        // Si on a déjà une citation pour aujourd'hui, on la retourne
+        if (dailyQuoteCache && lastQuoteDate === today) {
+            return dailyQuoteCache;
+        }
+
+        // Sinon, on demande à l'IA
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt: "Génère UNE citation motivante courte (maximum 15 mots) sur la discipline, le sport, la persévérance ou le dépassement de soi. Réponds UNIQUEMENT avec la citation, sans guillemets, sans préambule, sans explication." 
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+                const citation = data.candidates[0].content.parts[0].text.trim();
+                // Nettoyer la citation (enlever guillemets si présents)
+                const cleanQuote = citation.replace(/^["']|["']$/g, '').trim();
+                
+                // Sauvegarder en cache
+                dailyQuoteCache = cleanQuote;
+                lastQuoteDate = today;
+                
+                // Sauvegarder dans localStorage pour persistance
+                localStorage.setItem('dailyQuote', cleanQuote);
+                localStorage.setItem('dailyQuoteDate', today);
+                
+                return cleanQuote;
+            }
+        } catch (error) {
+            console.error("Erreur génération citation:", error);
+        }
+        
+        // En cas d'erreur, utiliser une citation par défaut
+        return MOTIVATION[new Date().getDate() % MOTIVATION.length];
+    }
+
+    // Charger la citation sauvegardée au démarrage
+    function loadSavedQuote() {
+        const savedQuote = localStorage.getItem('dailyQuote');
+        const savedDate = localStorage.getItem('dailyQuoteDate');
+        const today = new Date().toDateString();
+        
+        if (savedQuote && savedDate === today) {
+            dailyQuoteCache = savedQuote;
+            lastQuoteDate = savedDate;
+            return savedQuote;
+        }
+        return null;
+    }
+
+    // Fonction pour régénérer manuellement une citation
+    async function regenererCitation() {
+        const qBoxEl = document.getElementById('qBox');
+        qBoxEl.innerText = '"Génération d\'une nouvelle citation..."';
+        
+        // Réinitialiser le cache pour forcer une nouvelle génération
+        dailyQuoteCache = null;
+        lastQuoteDate = null;
+        
+        const newQuote = await genererCitationIA();
+        qBoxEl.innerText = `"${newQuote}"`;
+    }
+
+    // ===== GÉNÉRATEUR MOT DU JOUR IA =====
+    let dailyWordCache = null;
+    let lastWordDate = null;
+
+    async function genererMotIA() {
+        const today = new Date().toDateString();
+        
+        if (dailyWordCache && lastWordDate === today) {
+            return dailyWordCache;
+        }
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt: "Génère UN mot du vocabulaire du sport/fitness/nutrition/discipline avec sa définition courte (max 20 mots). Format EXACT : MOT EN MAJUSCULES : définition claire. Exemple : CATABOLISME : Processus de dégradation des tissus musculaires. Réponds UNIQUEMENT avec le mot et sa définition, sans autre texte." 
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+                const wordDef = data.candidates[0].content.parts[0].text.trim();
+                
+                dailyWordCache = wordDef;
+                lastWordDate = today;
+                
+                localStorage.setItem('dailyWord', wordDef);
+                localStorage.setItem('dailyWordDate', today);
+                
+                return wordDef;
+            }
+        } catch (error) {
+            console.error("Erreur génération mot:", error);
+        }
+        
+        const word = DICT[new Date().getDate() % DICT.length];
+        return `${word.w} : ${word.d}`;
+    }
+
+    function loadSavedWord() {
+        const savedWord = localStorage.getItem('dailyWord');
+        const savedDate = localStorage.getItem('dailyWordDate');
+        const today = new Date().toDateString();
+        
+        if (savedWord && savedDate === today) {
+            dailyWordCache = savedWord;
+            lastWordDate = savedDate;
+            return savedWord;
+        }
+        return null;
+    }
+
+    async function regenererMot() {
+        const mTxtEl = document.getElementById('mTxt');
+        mTxtEl.innerHTML = 'Génération d\'un nouveau mot...';
+        
+        dailyWordCache = null;
+        lastWordDate = null;
+        
+        const newWord = await genererMotIA();
+        // Parser le mot pour formater correctement
+        const parts = newWord.split(' : ');
+        if (parts.length === 2) {
+            mTxtEl.innerHTML = `<b style="color:var(--neon)">${parts[0]}</b> : ${parts[1]}`;
+        } else {
+            mTxtEl.innerHTML = newWord;
+        }
+    }
+
+    // ===== GÉNÉRATEUR QUIZ IA =====
+    let dailyQuizCache = null;
+    let lastQuizDate = null;
+
+    async function genererQuizIA() {
+        const today = new Date().toDateString();
+        
+        if (dailyQuizCache && lastQuizDate === today) {
+            return dailyQuizCache;
+        }
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    prompt: `Génère UNE question de quiz sur le sport/fitness/nutrition/discipline avec 4 réponses possibles. Format JSON STRICT :
+{
+  "q": "La question ?",
+  "answers": ["Réponse A", "Réponse B", "Réponse C", "Réponse D"],
+  "correct": 0,
+  "explanation": "Explication courte de la bonne réponse"
+}
+Le champ "correct" doit être l'index de la bonne réponse (0, 1, 2 ou 3).
+Réponds UNIQUEMENT avec le JSON, sans texte avant ou après, sans backticks markdown.` 
+                })
+            });
+
+            const data = await response.json();
+            
+            if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
+                let quizText = data.candidates[0].content.parts[0].text.trim();
+                
+                // Nettoyer les éventuels backticks markdown
+                quizText = quizText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                
+                const quiz = JSON.parse(quizText);
+                
+                dailyQuizCache = quiz;
+                lastQuizDate = today;
+                
+                localStorage.setItem('dailyQuiz', JSON.stringify(quiz));
+                localStorage.setItem('dailyQuizDate', today);
+                
+                return quiz;
+            }
+        } catch (error) {
+            console.error("Erreur génération quiz:", error);
+        }
+        
+        return null;
+    }
+
+    function loadSavedQuiz() {
+        const savedQuiz = localStorage.getItem('dailyQuiz');
+        const savedDate = localStorage.getItem('dailyQuizDate');
+        const today = new Date().toDateString();
+        
+        if (savedQuiz && savedDate === today) {
+            try {
+                const quiz = JSON.parse(savedQuiz);
+                dailyQuizCache = quiz;
+                lastQuizDate = savedDate;
+                return quiz;
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    async function regenererQuiz() {
+        dailyQuizCache = null;
+        lastQuizDate = null;
+        
+        const qcmContainer = document.getElementById('qcmContainer');
+        qcmContainer.innerHTML = '<div style="padding:15px; color:#888;">Génération d\'une nouvelle question...</div>';
+        
+        await displayQCM();
+    }
     const PROGRESS_PHRASES = ["Commence maintenant.", "C'est un bon début.", "La moitié est faite.", "Rien ne t'arrête.", "ÉLITE ATTEINTE !"];
     const DICT = [{w:"ABNÉGATION", d:"Sacrifice de soi pour une cause supérieure."}, {w:"HYPERTROPHIE", d:"Croissance du volume musculaire."}, {w:"L'INDICE GLYCÉMIQUE", d:"Mesure la capacité d'un aliment à élever le taux de sucre."}];
     const RANKS = [
@@ -831,22 +1066,42 @@
         return availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
     }
     
-    function displayQCM() {
-        const questionIndex = getTodayQCM();
+    async function displayQCM() {
         const content = document.getElementById('qcmContent');
         
-        if (questionIndex === null) {
+        // Vérifier si déjà répondu aujourd'hui
+        const today = new Date().toDateString();
+        const lastAnswered = localStorage.getItem('lastQCMAnswered');
+        
+        if (lastAnswered === today) {
             content.innerHTML = '<div style="text-align:center; padding:20px; color:#8a2be2; font-size:0.75rem;">✅ Question du jour déjà répondue !</div>';
             return;
         }
         
-        const question = QCM_QUESTIONS[questionIndex];
+        // Essayer de charger le quiz sauvegardé
+        let question = loadSavedQuiz();
+        
+        // Si pas de quiz sauvegardé, en générer un
+        if (!question) {
+            content.innerHTML = '<div style="padding:15px; color:#888;">Génération de la question du jour...</div>';
+            question = await genererQuizIA();
+        }
+        
+        // Si l'IA a échoué, utiliser une question par défaut
+        if (!question) {
+            const questionIndex = getTodayQCM();
+            if (questionIndex === null) {
+                content.innerHTML = '<div style="text-align:center; padding:20px; color:#8a2be2; font-size:0.75rem;">✅ Question du jour déjà répondue !</div>';
+                return;
+            }
+            question = QCM_QUESTIONS[questionIndex];
+        }
         
         content.innerHTML = `
             <div class="qcm-question">${question.q}</div>
             <div class="qcm-answers">
                 ${question.answers.map((answer, i) => `
-                    <div class="qcm-answer" onclick="answerQCM(${questionIndex}, ${i})" id="qcm-answer-${i}">
+                    <div class="qcm-answer" onclick="answerQCMAI(${i})" id="qcm-answer-${i}">
                         ${answer}
                     </div>
                 `).join('')}
@@ -855,6 +1110,40 @@
                 💡 ${question.explanation}
             </div>
         `;
+        
+        // Sauvegarder la question actuelle pour la fonction de réponse
+        window.currentQCMQuestion = question;
+    }
+    
+    function answerQCMAI(answerIndex) {
+        const question = window.currentQCMQuestion || QCM_QUESTIONS[0];
+        const correct = question.correct;
+        const isCorrect = answerIndex === correct;
+        
+        // Afficher le résultat
+        document.querySelectorAll('.qcm-answer').forEach((el, i) => {
+            el.style.pointerEvents = 'none';
+            if (i === correct) {
+                el.style.background = 'rgba(0, 255, 65, 0.2)';
+                el.style.borderColor = 'var(--neon)';
+            } else if (i === answerIndex && !isCorrect) {
+                el.style.background = 'rgba(255, 68, 68, 0.2)';
+                el.style.borderColor = '#ff4444';
+            }
+        });
+        
+        document.getElementById('qcmExplanation').style.display = 'block';
+        
+        // Mettre à jour le score esprit
+        if (isCorrect) {
+            db.mindScore = Math.min(100, (db.mindScore || 0) + 10);
+            save();
+            updateMindScoreUI();
+        }
+        
+        // Marquer comme répondu aujourd'hui
+        const today = new Date().toDateString();
+        localStorage.setItem('lastQCMAnswered', today);
     }
     
     function answerQCM(questionIndex, answerIndex) {
@@ -1575,7 +1864,7 @@ Avance. Même lentement. 🐢`;
         }
     }
 
-    function updateUI() {
+    async function updateUI() {
         db.weight = parseFloat(document.getElementById('weightIn').value) || db.weight;
         db.goal = document.getElementById('goalSel').value;
         const targetP = Math.round(db.weight * (db.goal === 'pdm' ? 2.2 : 1.8));
@@ -1621,8 +1910,44 @@ Avance. Même lentement. 🐢`;
         document.getElementById('motivLabel').innerText = PROGRESS_PHRASES[phraseIdx];
 
         document.getElementById('qBox').innerText = `"${MOTIVATION[new Date().getDate() % MOTIVATION.length]}"`;
-        const word = DICT[new Date().getDate() % DICT.length];
-        document.getElementById('mTxt').innerHTML = `<b style="color:var(--neon)">${word.w}</b> : ${word.d}`;
+        
+        // Charger ou générer la citation IA
+        (async () => {
+            const qBoxEl = document.getElementById('qBox');
+            const savedQuote = loadSavedQuote();
+            
+            if (savedQuote) {
+                qBoxEl.innerText = `"${savedQuote}"`;
+            } else {
+                qBoxEl.innerText = '"Chargement de votre citation du jour..."';
+                const aiQuote = await genererCitationIA();
+                qBoxEl.innerText = `"${aiQuote}"`;
+            }
+        })();
+        
+        // Charger ou générer le mot du jour IA
+        (async () => {
+            const mTxtEl = document.getElementById('mTxt');
+            const savedWord = loadSavedWord();
+            
+            if (savedWord) {
+                const parts = savedWord.split(' : ');
+                if (parts.length === 2) {
+                    mTxtEl.innerHTML = `<b style="color:var(--neon)">${parts[0]}</b> : ${parts[1]}`;
+                } else {
+                    mTxtEl.innerHTML = savedWord;
+                }
+            } else {
+                mTxtEl.innerHTML = 'Chargement du mot du jour...';
+                const aiWord = await genererMotIA();
+                const parts = aiWord.split(' : ');
+                if (parts.length === 2) {
+                    mTxtEl.innerHTML = `<b style="color:var(--neon)">${parts[0]}</b> : ${parts[1]}`;
+                } else {
+                    mTxtEl.innerHTML = aiWord;
+                }
+            }
+        })();
         
         updateGuidedJournalUI();
         
@@ -1637,7 +1962,7 @@ Avance. Même lentement. 🐢`;
         updateCoachUI();
         
         // Mise à jour du QCM et score esprit
-        displayQCM();
+        await displayQCM();
         updateMindScoreUI();
         checkJournalButton();
         
