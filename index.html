@@ -418,7 +418,8 @@
             </div>
             <textarea class="chef-textarea" id="userInput" placeholder="Ex: j'ai du poulet, du riz, des courgettes et de l'ail..."></textarea>
             <button class="btn-chef" onclick="demanderIA()">🍳 Génère mes recettes</button>
-            <div id="zone-reponse" style="margin-top:14px; padding:14px; border-radius:12px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,140,0,0.2); color:#ddd; font-size:0.78rem; line-height:1.6; white-space:pre-wrap; display:none;"></div>
+            <div id="conversation-history" style="margin-top:14px; max-height:400px; overflow-y:auto;"></div>
+            <div id="zone-reponse" style="margin-top:14px; padding:14px; border-radius:12px; background:rgba(0,0,0,0.3); border:1px solid rgba(255,140,0,0.2); color:#ddd; font-size:0.78rem; line-height:1.6; display:none;"></div>
         </div>
     </div>
 
@@ -1693,56 +1694,114 @@ Avance. Même lentement. 🐢`;
 </script>
 
 <script>
+// Historique de conversation
+let conversationHistory = [];
+
+// Fonction pour convertir le Markdown basique en HTML
+function markdownToHTML(text) {
+    return text
+        // Titres
+        .replace(/^### (.*$)/gim, '<h3 style="color:var(--neon); font-size:1rem; font-weight:900; margin:12px 0 8px 0;">$1</h3>')
+        .replace(/^## (.*$)/gim, '<h2 style="color:var(--neon); font-size:1.1rem; font-weight:900; margin:14px 0 10px 0;">$1</h2>')
+        .replace(/^# (.*$)/gim, '<h1 style="color:var(--neon); font-size:1.2rem; font-weight:900; margin:16px 0 12px 0;">$1</h1>')
+        // Gras et italique
+        .replace(/\*\*(.*?)\*\*/g, '<strong style="color:var(--blue);">$1</strong>')
+        .replace(/\*(.*?)\*/g, '<em>$1</em>')
+        // Listes
+        .replace(/^\*   (.*$)/gim, '<li style="margin-left:20px;">$1</li>')
+        .replace(/^- (.*$)/gim, '<li style="margin-left:20px;">$1</li>')
+        // Sauts de ligne
+        .replace(/\n\n/g, '<br><br>')
+        .replace(/\n/g, '<br>');
+}
+
 async function demanderIA() {
-    // 1. On récupère le texte. 
-    // ATTENTION : 'userInput' doit être l'ID de ton <textarea> ou <input>
     const input = document.getElementById('userInput'); 
     const responseDiv = document.getElementById('zone-reponse');
+    const historyDiv = document.getElementById('conversation-history');
     
-    if (!input || !input.value) return alert("Écris quelque chose !");
+    if (!input || !input.value.trim()) return alert("Écris quelque chose !");
 
+    const userMessage = input.value.trim();
+    
+    // Ajouter le message utilisateur à l'historique
+    conversationHistory.push({ role: 'user', content: userMessage });
+    
+    // Afficher le message utilisateur
+    const userMsgDiv = document.createElement('div');
+    userMsgDiv.style.cssText = 'padding:10px; margin-bottom:8px; background:rgba(0,255,65,0.1); border-left:3px solid var(--neon); border-radius:8px; font-size:0.75rem;';
+    userMsgDiv.innerHTML = `<strong style="color:var(--neon);">Vous :</strong><br>${userMessage}`;
+    historyDiv.appendChild(userMsgDiv);
+    
+    // Vider l'input
+    input.value = '';
+    
+    // Afficher le chargement
     responseDiv.style.display = "block";
-    responseDiv.innerText = "L'IA réfléchit...";
+    responseDiv.innerHTML = "🤖 L'IA réfléchit...";
 
     try {
-        const response = await fetch('/api/chat', { // Bien en minuscules
+        const response = await fetch('/api/chat', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ prompt: input.value })
+            body: JSON.stringify({ prompt: userMessage })
         });
 
         const data = await response.json();
-        console.log("Réponse complète:", data); // Pour voir toute la structure
 
-        // Vérifier s'il y a une erreur dans la réponse
         if (data.error) {
             console.error("Erreur API:", data.error);
-            responseDiv.innerText = `Erreur: ${data.error.message || data.error}`;
+            responseDiv.innerHTML = `❌ Erreur: ${data.error.message || data.error}`;
             return;
         }
 
-        // On plonge dans l'objet Google pour trouver le texte
         if (data.candidates && data.candidates[0]) {
             const candidate = data.candidates[0];
             
-            // Vérifier si content existe
             if (candidate.content && candidate.content.parts && candidate.content.parts[0]) {
                 const texteIA = candidate.content.parts[0].text;
-                responseDiv.innerText = texteIA; // AFFICHAGE DE LA RECETTE !
+                
+                // Ajouter la réponse à l'historique
+                conversationHistory.push({ role: 'assistant', content: texteIA });
+                
+                // Afficher la réponse formatée dans l'historique
+                const aiMsgDiv = document.createElement('div');
+                aiMsgDiv.style.cssText = 'padding:12px; margin-bottom:12px; background:rgba(0,209,255,0.05); border-left:3px solid var(--blue); border-radius:8px; font-size:0.78rem; line-height:1.6;';
+                aiMsgDiv.innerHTML = `<strong style="color:var(--blue);">Chef IA :</strong><br><br>${markdownToHTML(texteIA)}`;
+                historyDiv.appendChild(aiMsgDiv);
+                
+                // Masquer la zone de chargement
+                responseDiv.style.display = "none";
+                
+                // Scroll vers le bas
+                historyDiv.scrollTop = historyDiv.scrollHeight;
             } else {
                 console.error("Structure candidate incorrecte:", candidate);
-                responseDiv.innerText = "Format de réponse inattendu. Vérifiez la console.";
+                responseDiv.innerHTML = "⚠️ Format de réponse inattendu.";
             }
         } else {
             console.error("Structure complète reçue:", JSON.stringify(data, null, 2));
-            responseDiv.innerText = "L'IA a répondu, mais le format est inconnu. Consultez la console (F12).";
+            responseDiv.innerHTML = "⚠️ L'IA a répondu, mais le format est inconnu.";
         }
 
     } catch (error) {
-        responseDiv.innerText = "Erreur de connexion.";
+        responseDiv.innerHTML = "❌ Erreur de connexion.";
         console.error(error);
     }
 }
+
+// Permettre d'envoyer avec Enter (mais Shift+Enter pour nouvelle ligne)
+document.addEventListener('DOMContentLoaded', function() {
+    const input = document.getElementById('userInput');
+    if(input) {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                demanderIA();
+            }
+        });
+    }
+});
 </script>
 </body>
 </html>
