@@ -1,10 +1,13 @@
 export default async function handler(req, res) {
-  // 1. On récupère la question de l'utilisateur
   const { prompt } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
+  if (!prompt) {
+    return res.status(400).json({ error: "Prompt manquant" });
+  }
+
   try {
-    // 2. On utilise gemini-2.0-flash qui est très stable et rapide
+    // Changement pour le modèle 2.0 Flash (le plus performant dispo)
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 
@@ -19,19 +22,16 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 
-    // 3. Gestion des erreurs de quota ou de clé API
+    // Si Google renvoie une erreur (quota ou nom de modèle)
     if (data.error) {
-      console.error("Erreur Google:", data.error.message);
-      return res.status(400).json({ 
-        error: "Limite atteinte ou erreur API. Réessayez dans 1 minute." 
-      });
+      console.error("Erreur API Google:", data.error.message);
+      return res.status(400).json({ error: data.error.message });
     }
 
-    // 4. On renvoie la réponse à ton fichier index.html
     res.status(200).json(data);
 
   } catch (error) {
     console.error("Erreur Serveur:", error);
-    res.status(500).json({ error: "Problème de connexion avec l'IA." });
+    res.status(500).json({ error: "Erreur de connexion serveur." });
   }
 }
