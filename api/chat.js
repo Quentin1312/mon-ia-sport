@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // On récupère la question du sport envoyée par le HTML
   const { prompt } = req.body;
   const apiKey = process.env.GEMINI_API_KEY;
 
@@ -13,8 +12,6 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    
-    // On renvoie la réponse de l'IA à ton site
     res.status(200).json(data);
   } catch (error) {
     console.error("Erreur API:", error);
