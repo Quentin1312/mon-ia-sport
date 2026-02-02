@@ -1712,13 +1712,14 @@ async function demanderIA() {
         });
 
         const data = await response.json();
-        console.log("Réponse de l'API:", data); // DEBUG : voir ce qui est renvoyé
-        
-        // Vérifie si Gemini a renvoyé une erreur ou du texte
-        if (data.candidates && data.candidates[0].content.parts[0].text) {
-            responseDiv.innerText = data.candidates[0].content.parts[0].text;
+
+        // On plonge dans l'objet Google pour trouver le texte
+        if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
+            const texteIA = data.candidates[0].content.parts[0].text;
+            responseDiv.innerText = texteIA; // AFFICHAGE DE LA RECETTE !
         } else {
-            responseDiv.innerText = "L'IA n'a pas pu répondre. Vérifie ta clé API sur Vercel.";
+            console.error("Structure reçue :", data);
+            responseDiv.innerText = "L'IA a répondu, mais le format est inconnu.";
         }
 
     } catch (error) {
