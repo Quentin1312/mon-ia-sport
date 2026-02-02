@@ -3,8 +3,8 @@ export default async function handler(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
 
   try {
-    // ✅ Ajout de "-latest" au nom du modèle
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+    // ✅ GEMINI-PRO : Le seul modèle 100% compatible avec toutes les clés API
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -14,7 +14,6 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     
-    // Si Google renvoie une erreur, on la capture pour les logs
     if (data.error) {
       console.error("Erreur Google:", data.error.message);
       return res.status(400).json({ error: data.error.message });
