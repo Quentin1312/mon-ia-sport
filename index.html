@@ -1712,14 +1712,30 @@ async function demanderIA() {
         });
 
         const data = await response.json();
+        console.log("Réponse complète:", data); // Pour voir toute la structure
+
+        // Vérifier s'il y a une erreur dans la réponse
+        if (data.error) {
+            console.error("Erreur API:", data.error);
+            responseDiv.innerText = `Erreur: ${data.error.message || data.error}`;
+            return;
+        }
 
         // On plonge dans l'objet Google pour trouver le texte
-        if (data.candidates && data.candidates[0].content && data.candidates[0].content.parts) {
-            const texteIA = data.candidates[0].content.parts[0].text;
-            responseDiv.innerText = texteIA; // AFFICHAGE DE LA RECETTE !
+        if (data.candidates && data.candidates[0]) {
+            const candidate = data.candidates[0];
+            
+            // Vérifier si content existe
+            if (candidate.content && candidate.content.parts && candidate.content.parts[0]) {
+                const texteIA = candidate.content.parts[0].text;
+                responseDiv.innerText = texteIA; // AFFICHAGE DE LA RECETTE !
+            } else {
+                console.error("Structure candidate incorrecte:", candidate);
+                responseDiv.innerText = "Format de réponse inattendu. Vérifiez la console.";
+            }
         } else {
-            console.error("Structure reçue :", data);
-            responseDiv.innerText = "L'IA a répondu, mais le format est inconnu.";
+            console.error("Structure complète reçue:", JSON.stringify(data, null, 2));
+            responseDiv.innerText = "L'IA a répondu, mais le format est inconnu. Consultez la console (F12).";
         }
 
     } catch (error) {
