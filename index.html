@@ -1694,17 +1694,18 @@ Avance. Même lentement. 🐢`;
 
 <script>
 async function demanderIA() {
-    const input = document.getElementById('userInput');
+    // 1. On récupère le texte. 
+    // ATTENTION : 'userInput' doit être l'ID de ton <textarea> ou <input>
+    const input = document.getElementById('userInput'); 
     const responseDiv = document.getElementById('zone-reponse');
     
-    if (!input.value) return alert("Écris quelque chose d'abord !");
+    if (!input || !input.value) return alert("Écris quelque chose !");
 
-    // On prépare l'affichage
     responseDiv.style.display = "block";
-    responseDiv.innerText = "L'IA analyse tes données...";
+    responseDiv.innerText = "L'IA réfléchit...";
 
     try {
-        const response = await fetch('/api/chat', {
+        const response = await fetch('/api/chat', { // Bien en minuscules
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prompt: input.value })
@@ -1712,14 +1713,15 @@ async function demanderIA() {
 
         const data = await response.json();
         
-        // Extraction de la réponse Gemini
-        const texteIA = data.candidates[0].content.parts[0].text;
-        
-        // On affiche le résultat
-        responseDiv.innerText = texteIA;
+        // Vérifie si Gemini a renvoyé une erreur ou du texte
+        if (data.candidates && data.candidates[0].content.parts[0].text) {
+            responseDiv.innerText = data.candidates[0].content.parts[0].text;
+        } else {
+            responseDiv.innerText = "L'IA n'a pas pu répondre. Vérifie ta clé API sur Vercel.";
+        }
 
     } catch (error) {
-        responseDiv.innerText = "Erreur : Impossible de joindre l'IA. Vérifie ta connexion.";
+        responseDiv.innerText = "Erreur de connexion.";
         console.error(error);
     }
 }
