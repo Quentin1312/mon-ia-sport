@@ -4,8 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELITE TRACKER - QUENTIN V14 DISCIPLINE</title>
-   <link rel="apple-touch-icon" href="Logo.png">
-<link rel="icon" type="image/png" href="Logo.png">
+    <link rel="apple-touch-icon" href="logo.png">
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00ff41">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;700;900&family=Orbitron:wght@900&display=swap" rel="stylesheet">
     <style>
@@ -2129,6 +2133,106 @@ document.addEventListener('DOMContentLoaded', function() {
                 demanderIA();
             }
         });
+    }
+});
+</script>
+
+<script>
+// ===== PWA + NOTIFICATIONS LOCALES =====
+
+let swRegistration = null;
+
+// Enregistrer le Service Worker
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then(reg => {
+        swRegistration = reg;
+        console.log('✅ Service Worker enregistré');
+    }).catch(err => console.log('SW erreur:', err));
+}
+
+// Demander la permission de notifier
+async function demanderPermissionNotif() {
+    if (!('Notification' in window)) return false;
+    if (Notification.permission === 'granted') return true;
+    if (Notification.permission === 'denied') return false;
+    const perm = await Notification.requestPermission();
+    return perm === 'granted';
+}
+
+// Envoyer une notification locale
+function envoyerNotif(titre, message) {
+    if (!swRegistration || Notification.permission !== 'granted') return;
+    swRegistration.showNotification(titre, {
+        body: message,
+        icon: 'logo.png',
+        badge: 'logo.png',
+        vibrate: [200, 100, 200],
+        tag: 'elite-' + Date.now()
+    });
+}
+
+// Programmer une notification avec délai (en ms)
+function programmerNotif(titre, message, delaiMs) {
+    if (!swRegistration) return;
+    if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+            type: 'SCHEDULE_NOTIFICATION',
+            title: titre,
+            body: message,
+            delay: delaiMs
+        });
+    }
+}
+
+// ===== RAPPELS AUTOMATIQUES =====
+
+function lancerRappels() {
+    if (Notification.permission !== 'granted') return;
+
+    const maintenant = new Date();
+    const heures = maintenant.getHours();
+
+    // Rappels nutrition (12h et 19h)
+    const rappelsNutrition = [
+        { h: 12, m: 0, titre: '🍗 Rappel Nutrition', msg: 'T\'as pensé à tracker tes protéines ce midi ?' },
+        { h: 19, m: 0, titre: '🥗 Rappel Dîner', msg: 'N\'oublie pas de tracker ton repas du soir !' }
+    ];
+
+    // Rappels missions (9h et 17h)
+    const rappelsMissions = [
+        { h: 9, m: 0, titre: '🎯 Mission du jour', msg: 'C\'est l\'heure de ta mission critique ! Go go go !' },
+        { h: 17, m: 0, titre: '⚡ Check missions', msg: 'T\'as complété tes missions aujourd\'hui ?' }
+    ];
+
+    // Rappel focus (14h)
+    const rappelsFocus = [
+        { h: 14, m: 0, titre: '🧠 Temps de Focus', msg: 'Lance une session focus de 25 min !' }
+    ];
+
+    const tousRappels = [...rappelsNutrition, ...rappelsMissions, ...rappelsFocus];
+
+    tousRappels.forEach(r => {
+        const cible = new Date();
+        cible.setHours(r.h, r.m, 0, 0);
+
+        // Si l'heure est déjà passée aujourd'hui, programmer pour demain
+        if (cible <= maintenant) {
+            cible.setDate(cible.getDate() + 1);
+        }
+
+        const delai = cible - maintenant;
+        programmerNotif(r.titre, r.msg, delai);
+    });
+
+    console.log('📌 Rappels programmés');
+}
+
+// Au chargement : demander permission + lancer rappels
+document.addEventListener('DOMContentLoaded', async () => {
+    const autorise = await demanderPermissionNotif();
+    if (autorise) {
+        // Petit délai pour que le SW soit prêt
+        setTimeout(lancerRappels, 2000);
     }
 });
 </script>
