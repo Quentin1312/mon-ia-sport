@@ -2141,12 +2141,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
 let swRegistration = null;
 
-// Enregistrer le Service Worker
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(reg => {
-        swRegistration = reg;
-        console.log('✅ Service Worker enregistré');
-    }).catch(err => console.log('SW erreur:', err));
+// Enregistrer le Service Worker et attendre qu'il soit prêt
+async function initServiceWorker() {
+    if (!('serviceWorker' in navigator)) return null;
+    try {
+        const reg = await navigator.serviceWorker.register('sw.js');
+        // Attendre que le SW soit actif
+        if (reg.active) {
+            swRegistration = reg;
+        } else {
+            // Attendre l'activation
+            const sw = reg.installing || reg.waiting;
+            if (sw) {
+                await new Promise(resolve => {
+                    sw.addEventListener('statechange', () => {
+                        if (sw.state === 'activated') resolve();
+                    });
+                    if (sw.state === 'activated') resolve();
+                });
+            }
+            swRegistration = reg;
+        }
+        console.log('✅ Service Worker prêt');
+        return reg;
+    } catch (err) {
+        console.log('SW erreur:', err);
+        return null;
+    }
 }
 
 // Demander la permission de notifier
@@ -2158,23 +2179,13 @@ async function demanderPermissionNotif() {
     return perm === 'granted';
 }
 
-// Envoyer une notification locale
-function envoyerNotif(titre, message) {
-    if (!swRegistration || Notification.permission !== 'granted') return;
-    swRegistration.showNotification(titre, {
-        body: message,
-        icon: 'logo.png',
-        badge: 'logo.png',
-        vibrate: [200, 100, 200],
-        tag: 'elite-' + Date.now()
-    });
-}
-
-// Programmer une notification avec délai (en ms)
+// Programmer une notification via setTimeout dans le SW
 function programmerNotif(titre, message, delaiMs) {
     if (!swRegistration) return;
-    if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
+    // Utiliser le SW actif directement
+    const sw = swRegistration.active;
+    if (sw) {
+        sw.postMessage({
             type: 'SCHEDULE_NOTIFICATION',
             title: titre,
             body: message,
@@ -2183,42 +2194,37 @@ function programmerNotif(titre, message, delaiMs) {
     }
 }
 
+// Envoyer une notification immédiate
+function envoyerNotif(titre, message) {
+    if (!swRegistration || Notification.permission !== 'granted') return;
+    swRegistration.showNotification(titre, {
+        body: message,
+        icon: 'Logo.png',
+        badge: 'Logo.png',
+        vibrate: [200, 100, 200],
+        tag: 'elite-' + Date.now()
+    });
+}
+
 // ===== RAPPELS AUTOMATIQUES =====
 
 function lancerRappels() {
-    if (Notification.permission !== 'granted') return;
+    if (Notification.permission !== 'granted' || !swRegistration) return;
 
     const maintenant = new Date();
-    const heures = maintenant.getHours();
 
-    // Rappels nutrition (12h et 19h)
-    const rappelsNutrition = [
+    const tousRappels = [
+        { h: 9, m: 0, titre: '🎯 Mission du jour', msg: 'C\'est l\'heure de ta mission critique ! Go go go !' },
         { h: 12, m: 0, titre: '🍗 Rappel Nutrition', msg: 'T\'as pensé à tracker tes protéines ce midi ?' },
+        { h: 14, m: 0, titre: '🧠 Temps de Focus', msg: 'Lance une session focus de 25 min !' },
+        { h: 17, m: 0, titre: '⚡ Check missions', msg: 'T\'as complété tes missions aujourd\'hui ?' },
         { h: 19, m: 0, titre: '🥗 Rappel Dîner', msg: 'N\'oublie pas de tracker ton repas du soir !' }
     ];
-
-    // Rappels missions (9h et 17h)
-    const rappelsMissions = [
-        { h: 9, m: 0, titre: '🎯 Mission du jour', msg: 'C\'est l\'heure de ta mission critique ! Go go go !' },
-        { h: 17, m: 0, titre: '⚡ Check missions', msg: 'T\'as complété tes missions aujourd\'hui ?' }
-    ];
-
-    // Rappel focus (14h)
-    const rappelsFocus = [
-        { h: 14, m: 0, titre: '🧠 Temps de Focus', msg: 'Lance une session focus de 25 min !' }
-    ];
-
-    const tousRappels = [...rappelsNutrition, ...rappelsMissions, ...rappelsFocus];
 
     tousRappels.forEach(r => {
         const cible = new Date();
         cible.setHours(r.h, r.m, 0, 0);
-
-        // Si l'heure est déjà passée aujourd'hui, programmer pour demain
-        if (cible <= maintenant) {
-            cible.setDate(cible.getDate() + 1);
-        }
-
+        if (cible <= maintenant) cible.setDate(cible.getDate() + 1);
         const delai = cible - maintenant;
         programmerNotif(r.titre, r.msg, delai);
     });
@@ -2226,12 +2232,54 @@ function lancerRappels() {
     console.log('📌 Rappels programmés');
 }
 
-// Au chargement : demander permission + lancer rappels
-document.addEventListener('DOMContentLoaded', async () => {
+// Bannière pour demander les notifications
+function afficherBanniereNotif() {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'default') return; // Déjà accepté ou refusé
+    if (localStorage.getItem('notif_banner_dismissed')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'notifBanner';
+    banner.style.cssText = 'position:fixed; bottom:0; left:0; right:0; background:linear-gradient(135deg, #12161c, #1a1f2e); border-top:2px solid var(--neon); padding:16px 20px; z-index:9998; display:flex; align-items:center; justify-content:space-between; gap:12px;';
+    banner.innerHTML = `
+        <div style="flex:1;">
+            <div style="font-weight:900; font-size:0.8rem; color:var(--neon); margin-bottom:4px;">🔔 Activer les rappels ?</div>
+            <div style="font-size:0.7rem; color:#888;">Reçois des notifications pour tes missions, protéines et focus.</div>
+        </div>
+        <button onclick="activerNotifs()" style="background:var(--neon); color:black; border:none; padding:10px 18px; border-radius:10px; font-weight:900; font-size:0.7rem; cursor:pointer; white-space:nowrap;">ACTIVER</button>
+        <button onclick="fermerBanniereNotif()" style="background:transparent; border:1px solid #444; color:#888; padding:8px 12px; border-radius:10px; font-size:0.65rem; cursor:pointer;">Non</button>
+    `;
+    document.body.appendChild(banner);
+}
+
+async function activerNotifs() {
     const autorise = await demanderPermissionNotif();
+    const banner = document.getElementById('notifBanner');
+    if (banner) banner.remove();
+
     if (autorise) {
-        // Petit délai pour que le SW soit prêt
-        setTimeout(lancerRappels, 2000);
+        // Notif de test immédiate
+        envoyerNotif('✅ Notifications activées', 'Tu recevras des rappels pour tes missions et ta nutrition.');
+        lancerRappels();
+    }
+}
+
+function fermerBanniereNotif() {
+    const banner = document.getElementById('notifBanner');
+    if (banner) banner.remove();
+    localStorage.setItem('notif_banner_dismissed', 'true');
+}
+
+// Au chargement : init SW puis notifications
+document.addEventListener('DOMContentLoaded', async () => {
+    await initServiceWorker();
+
+    if (Notification.permission === 'granted') {
+        // Déjà autorisé → lancer les rappels directement
+        lancerRappels();
+    } else {
+        // Pas encore demandé → afficher la bannière
+        afficherBanniereNotif();
     }
 });
 </script>
