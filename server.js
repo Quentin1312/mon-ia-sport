@@ -24,5 +24,5 @@ app.post('/api/chat', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`✅ Serveur lancé sur http://localhost:${PORT}`);
-  console.log(`📌 Clé API Anthropic: ${process.env.ANTHROPIC_API_KEY ? 'CONFIGURÉE ✓' : '⚠️ MANQUANTE - créez un fichier .env'}`);
+  console.log(`📌 Clé API Groq: ${process.env.GROQ_API_KEY ? 'CONFIGURÉE ✓' : '⚠️ MANQUANTE - créez un fichier .env'}`);
 });
