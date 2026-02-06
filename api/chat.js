@@ -29,6 +29,10 @@ export default async function handler(req, res) {
         model: "llama-3.3-70b-versatile",
         messages: [
           {
+            role: "system",
+            content: "Tu es un assistant francophone. Tu réponds TOUJOURS en français. Tu es spécialisé en nutrition, sport et cuisine healthy. Quand on te donne des ingrédients, tu proposes des recettes détaillées avec les macros (protéines, calories). Sois concis et motivant."
+          },
+          {
             role: "user",
             content: prompt
           }
