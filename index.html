@@ -430,20 +430,58 @@
     </div>
 
     <div id="p-jour" class="panel" style="display:none">
-        <div id="criticalBanner" onclick="toggleCrit()" style="display:none; background:var(--neon); color:#000; padding:12px; border-radius:12px; margin-bottom:15px; font-weight:900; font-size:0.75rem; text-align:center; text-transform:uppercase;"></div>
-        
-        <!-- QCM MICRO-LEARNING -->
+
+        <!-- 1. SAGESSE ELITE (tout en haut) -->
+        <div style="background: linear-gradient(135deg, rgba(138,43,226,0.08) 0%, rgba(0,209,255,0.06) 100%); border: 2px solid rgba(138,43,226,0.3); border-radius: 20px; padding: 18px; margin-bottom: 15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
+                <span style="font-size: 0.75rem; font-weight: 900; color: #8a2be2; text-transform: uppercase; letter-spacing: 2px;">💎 Sagesse ELITE</span>
+            </div>
+
+            <!-- Citation du jour -->
+            <div style="background: rgba(0,0,0,0.35); border-radius: 14px; padding: 16px; margin-bottom: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                    <span style="font-size: 0.6rem; font-weight: 900; color: var(--blue); text-transform: uppercase; letter-spacing: 1px;">💬 Citation du jour</span>
+                    <button onclick="regenererCitation()" style="background:rgba(0,209,255,0.1); border:1px solid var(--blue); color:var(--blue); padding:5px 12px; border-radius:8px; cursor:pointer; font-size:0.6rem; font-weight:700;">🔄 Autre</button>
+                </div>
+                <div id="qBox" style="border-left: 3px solid var(--blue); padding-left: 14px; font-style: italic; color: #bbb; font-size: 0.9rem; line-height: 1.6;"></div>
+            </div>
+
+            <!-- Mot du jour -->
+            <div style="background: rgba(0,0,0,0.35); border-radius: 14px; padding: 16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                    <span style="font-size: 0.6rem; font-weight: 900; color: var(--neon); text-transform: uppercase; letter-spacing: 1px;">📖 Mot du jour</span>
+                    <button onclick="regenererMot()" style="background:rgba(0,255,65,0.1); border:1px solid var(--neon); color:var(--neon); padding:5px 12px; border-radius:8px; cursor:pointer; font-size:0.6rem; font-weight:700;">🔄 Autre</button>
+                </div>
+                <p id="mTxt" style="font-size: 0.85rem; color: #ccc; margin: 0; line-height: 1.5;"></p>
+            </div>
+        </div>
+
+        <!-- 2. MICRO-APPRENTISSAGE -->
         <div class="qcm-card" id="qcmCard">
             <div class="qcm-header">
                 <span class="qcm-title">🧠 Micro-Apprentissage</span>
                 <div style="display:flex; gap:10px; align-items:center;">
-                    <button onclick="regenererQuiz()" style="background:transparent; border:1px solid #8a2be2; color:#8a2be2; padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.65rem;" title="Nouvelle question">🔄</button>
+                    <button onclick="regenererQuiz()" style="background:rgba(138,43,226,0.1); border:1px solid #8a2be2; color:#8a2be2; padding:5px 12px; border-radius:8px; cursor:pointer; font-size:0.6rem; font-weight:700;">🔄 Autre</button>
                     <span class="qcm-score">Score: <span id="qcmTotalScore">0</span> pts</span>
                 </div>
             </div>
             <div id="qcmContent"></div>
         </div>
-        
+
+        <!-- 3. MISSION CRITIQUE -->
+        <div id="criticalBanner" onclick="toggleCrit()" style="display:none; background: linear-gradient(135deg, var(--neon), #00cc33); color:#000; padding:14px 16px; border-radius: 14px; margin-bottom:15px; font-weight:900; font-size:0.75rem; text-align:center; text-transform:uppercase; box-shadow: 0 0 20px rgba(0,255,65,0.2);"></div>
+
+        <!-- 4. MISSIONS / TACHES -->
+        <div style="background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid rgba(0,255,65,0.1); margin-bottom: 15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                <span class="label" id="missionStatus" style="margin:0;">Missions du jour</span>
+            </div>
+            <div id="motivLabel" style="font-size: 0.65rem; color: var(--neon); margin-bottom: 8px; font-weight: 700;"></div>
+            <div class="m-bar"><div class="m-fill" id="mBar"></div></div>
+            <div id="tList"></div>
+            <div style="display:flex; gap:10px; margin-top:12px"><input type="text" id="tIn" placeholder="Nouvel objectif..." style="margin:0"><button class="btn" onclick="addT()" style="width:60px">+</button></div>
+        </div>
+
         <!-- COACH SECTION -->
         <div class="coach-card">
             <div class="coach-header">
@@ -452,57 +490,26 @@
             </div>
             <div id="coachAlerts"></div>
         </div>
-        
-        <div class="card">
-            <span class="label" id="missionStatus">Missions du jour</span>
-            <div id="motivLabel" style="font-size: 0.65rem; color: var(--neon); margin-bottom: 5px; font-weight: 700;"></div>
-            <div class="m-bar"><div class="m-fill" id="mBar"></div></div>
-            <div id="tList"></div>
-            <div style="display:flex; gap:10px; margin-top:10px"><input type="text" id="tIn" placeholder="Nouvel objectif..." style="margin:0"><button class="btn" onclick="addT()" style="width:60px">+</button></div>
-        </div>
-        <div style="background: linear-gradient(135deg, rgba(138,43,226,0.06) 0%, rgba(0,209,255,0.06) 100%); border: 2px solid rgba(138,43,226,0.3); border-radius: 20px; padding: 18px; margin-bottom: 15px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
-                <span style="font-size: 0.7rem; font-weight: 900; color: #8a2be2; text-transform: uppercase; letter-spacing: 2px;">💎 Sagesse ELITE</span>
-            </div>
 
-            <!-- Mot du jour -->
-            <div style="background: rgba(0,0,0,0.3); border-radius: 14px; padding: 14px; margin-bottom: 12px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                    <span style="font-size: 0.6rem; font-weight: 900; color: var(--neon); text-transform: uppercase; letter-spacing: 1px;">📖 Mot du jour</span>
-                    <button onclick="regenererMot()" style="background:rgba(0,255,65,0.1); border:1px solid var(--neon); color:var(--neon); padding:4px 10px; border-radius:8px; cursor:pointer; font-size:0.6rem; font-weight:700;">🔄 Autre</button>
-                </div>
-                <p id="mTxt" style="font-size: 0.85rem; color: #ccc; margin: 0; line-height: 1.5;"></p>
-            </div>
+        <!-- 5. JOURNAL GUIDE -->
+        <div style="background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid rgba(0,209,255,0.1); margin-bottom: 15px;">
+            <span class="label" style="color: var(--blue);">📝 Journal Guidé</span>
 
-            <!-- Citation du jour -->
-            <div style="background: rgba(0,0,0,0.3); border-radius: 14px; padding: 14px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
-                    <span style="font-size: 0.6rem; font-weight: 900; color: var(--blue); text-transform: uppercase; letter-spacing: 1px;">💬 Citation du jour</span>
-                    <button onclick="regenererCitation()" style="background:rgba(0,209,255,0.1); border:1px solid var(--blue); color:var(--blue); padding:4px 10px; border-radius:8px; cursor:pointer; font-size:0.6rem; font-weight:700;">🔄 Autre</button>
-                </div>
-                <div id="qBox" style="border-left: 3px solid var(--blue); padding-left: 14px; font-style: italic; color: #aaa; font-size: 0.85rem; line-height: 1.5;"></div>
-            </div>
-        </div>
-        
-        <button class="btn" onclick="openDailyWrap()" style="background:var(--blue); margin-bottom:15px; width:100%;">Terminer la journée</button>
-        <div class="card">
-            <span class="label">Journal Guidé</span>
-            
             <div class="journal-question">
                 <span class="journal-question-label">✅ Qu'est-ce que j'ai bien fait ?</span>
                 <textarea id="journalGood" placeholder="Ex: J'ai atteint mes protéines, séance intense..."></textarea>
             </div>
-            
+
             <div class="journal-question">
                 <span class="journal-question-label">⚠️ Qu'est-ce qui a freiné ?</span>
                 <textarea id="journalBlock" placeholder="Ex: Manque de sommeil, trop de distractions..."></textarea>
             </div>
-            
+
             <div class="journal-question">
                 <span class="journal-question-label">🎯 Une amélioration demain ?</span>
                 <textarea id="journalImprove" placeholder="Ex: Préparer mes repas la veille..."></textarea>
             </div>
-            
+
             <span class="journal-question-label">🏷️ Comment je me sens ?</span>
             <div class="journal-tags" id="journalTags">
                 <div class="journal-tag tag-energy" onclick="toggleJournalTag('energy')">🔴 Énergie basse</div>
@@ -511,14 +518,18 @@
                 <div class="journal-tag tag-calm" onclick="toggleJournalTag('calm')">😌 Calme</div>
                 <div class="journal-tag tag-productive" onclick="toggleJournalTag('productive')">⚡ Productif</div>
             </div>
-            
+
             <button class="btn" onclick="saveGuidedJournal()">Enregistrer le journal</button>
         </div>
-        
-        <div class="card">
-            <span class="label">Historique du Journal</span>
+
+        <!-- 6. HISTORIQUE JOURNAL -->
+        <div style="background: var(--card); padding: 20px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.05); margin-bottom: 15px;">
+            <span class="label">📚 Historique du Journal</span>
             <div id="guidedJournalList" style="max-height: 300px; overflow-y: auto;"></div>
         </div>
+
+        <!-- 7. TERMINER LA JOURNEE (tout en bas) -->
+        <button class="btn" onclick="openDailyWrap()" style="background: linear-gradient(135deg, var(--blue), #0099cc); margin-bottom:15px; width:100%; padding:18px; font-size:0.8rem; border-radius:16px; box-shadow: 0 0 20px rgba(0,209,255,0.2);">🔒 Terminer la journée</button>
     </div>
 </div>
 
@@ -709,27 +720,47 @@
     let dailyQuizCache = null;
     let lastQuizDate = null;
 
+    const THEMES_QUIZ = [
+        "psychologie ou biais cognitifs",
+        "histoire et événements marquants",
+        "science ou biologie humaine",
+        "géographie ou cultures du monde",
+        "nutrition ou alimentation",
+        "économie ou finance personnelle",
+        "philosophie ou grandes idées",
+        "technologie ou inventions",
+        "sport ou performance",
+        "astronomie ou univers",
+        "art ou musique",
+        "littérature ou langues",
+        "nature ou animaux",
+        "santé ou médecine",
+        "entrepreneuriat ou business"
+    ];
+
     async function genererQuizIA() {
         const today = new Date().toDateString();
-        
+
         if (dailyQuizCache && lastQuizDate === today) {
             return dailyQuizCache;
         }
+
+        const theme = THEMES_QUIZ[Math.floor(Math.random() * THEMES_QUIZ.length)];
 
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt: `Génère UNE question de quiz sur le sport/fitness/nutrition/discipline avec 4 réponses possibles. Format JSON STRICT :
+                body: JSON.stringify({
+                    prompt: `Génère UNE question de quiz intéressante et éducative sur le thème : ${theme}. La question doit apprendre quelque chose d'utile ou surprenant. 4 réponses possibles. Format JSON STRICT :
 {
-  "q": "La question ?",
+  "q": "La question en français ?",
   "answers": ["Réponse A", "Réponse B", "Réponse C", "Réponse D"],
   "correct": 0,
-  "explanation": "Explication courte de la bonne réponse"
+  "explanation": "Explication courte et intéressante de la bonne réponse"
 }
 Le champ "correct" doit être l'index de la bonne réponse (0, 1, 2 ou 3).
-Réponds UNIQUEMENT avec le JSON, sans texte avant ou après, sans backticks markdown.` 
+Réponds UNIQUEMENT avec le JSON, sans texte avant ou après, sans backticks markdown.`
                 })
             });
 
@@ -779,10 +810,12 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après, sans backticks mar
     async function regenererQuiz() {
         dailyQuizCache = null;
         lastQuizDate = null;
-        
-        const qcmContainer = document.getElementById('qcmContainer');
-        qcmContainer.innerHTML = '<div style="padding:15px; color:#888;">Génération d\'une nouvelle question...</div>';
-        
+        localStorage.removeItem('dailyQuiz');
+        localStorage.removeItem('dailyQuizDate');
+
+        const qcmContent = document.getElementById('qcmContent');
+        if (qcmContent) qcmContent.innerHTML = '<div style="padding:15px; color:#888;">Nouvelle question en cours...</div>';
+
         await displayQCM();
     }
     const PROGRESS_PHRASES = ["Commence maintenant.", "C'est un bon début.", "La moitié est faite.", "Rien ne t'arrête.", "ÉLITE ATTEINTE !"];
