@@ -2077,8 +2077,10 @@ async function demanderIA() {
         const data = await response.json();
 
         if (data.error) {
-            console.error("Erreur API:", data.error);
-            responseDiv.innerHTML = `❌ Erreur: ${data.error.message || data.error}`;
+            console.error("Erreur API:", data.error, data.debug || "");
+            const msg = data.error.message || data.error;
+            const hint = data.debug ? `<br><br><small style="color:#888;">${data.debug}</small>` : "";
+            responseDiv.innerHTML = `❌ Erreur: ${msg}${hint}`;
             return;
         }
 
