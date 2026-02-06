@@ -1512,307 +1512,227 @@ Réponds UNIQUEMENT avec le JSON, sans texte avant ou après, sans backticks mar
         return null;
     }
     
-    function analyzeProteinConsistency() {
-        const targetP = Math.round(db.weight * (db.goal === 'pdm' ? 2.2 : 1.8));
-        const last2Days = [...Array(2)].map((_, i) => {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            return d.toLocaleDateString();
-        }).reverse();
-        
-        let failedDays = 0;
-        last2Days.forEach(date => {
-            const logs = db.repas.filter(r => r.d === date);
-            const totP = logs.reduce((s, r) => s + r.p, 0);
-            if (totP < targetP * 0.8) failedDays++;
-        });
-        
-        if (failedDays >= 2) {
-            return {
-                type: 'warning',
-                title: '⚠️ Protéines insuffisantes',
-                desc: `Tu es en-dessous de 80% de ton objectif depuis 2 jours. Il te faut ${targetP}g/jour.`,
-                action: 'Voir plan rattrapage',
-                handler: 'showProteinPlan'
-            };
-        }
-        return null;
-    }
-    
-    function analyzeDisciplineConsistency() {
-        if (!db.disciplineHistory || db.disciplineHistory.length === 0) return null;
-        
-        const last5Days = [...Array(5)].map((_, i) => {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            return d.toLocaleDateString();
-        }).reverse();
-        
-        let lowDays = 0;
-        last5Days.forEach(date => {
-            const record = db.disciplineHistory.find(h => h.date === date);
-            if (record && record.score < 60) lowDays++;
-        });
-        
-        if (lowDays >= 3) {
-            return {
-                type: 'critical',
-                title: '🔴 Discipline en baisse',
-                desc: `Score < 60% sur ${lowDays} des 5 derniers jours. Trop d'objectifs tue la motivation.`,
-                action: 'Simplifier mes objectifs',
-                handler: 'showResetSuggestion'
-            };
-        }
-        return null;
-    }
-    
-    function analyzeJournalPatterns() {
-        if (!db.guidedJournals || db.guidedJournals.length < 3) return null;
-        
-        const last7Days = [...Array(7)].map((_, i) => {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            return d.toLocaleDateString();
-        }).reverse();
-        
-        const recentJournals = db.guidedJournals.filter(j => last7Days.includes(j.date));
-        
-        // Analyser les tags récurrents
-        const tagCount = {};
-        recentJournals.forEach(j => {
-            if (j.tags) {
-                j.tags.forEach(tag => {
-                    tagCount[tag] = (tagCount[tag] || 0) + 1;
-                });
-            }
-        });
-        
-        // Si "energy" apparaît 3+ fois
-        if (tagCount['energy'] >= 3) {
-            return {
-                type: 'warning',
-                title: '⚠️ Énergie basse récurrente',
-                desc: `Tu notes "Énergie basse" depuis ${tagCount['energy']} jours. Tes bases sont-elles solides ?`,
-                action: 'Voir recommandations',
-                handler: 'showEnergyRecommendations'
-            };
-        }
-        
-        // Si "stress" apparaît 3+ fois
-        if (tagCount['stress'] >= 3) {
-            return {
-                type: 'warning',
-                title: '😰 Niveau de stress élevé',
-                desc: `Stress noté ${tagCount['stress']} fois cette semaine. Le repos est aussi important que l'effort.`,
-                action: 'Stratégies anti-stress',
-                handler: 'showStressStrategies'
-            };
-        }
-        
-        return null;
-    }
-    
-    function analyzeTodayMood() {
-        if (!db.dailyMoods || db.dailyMoods.length === 0) return null;
-        
-        const auj = new Date().toLocaleDateString();
-        const todayMood = db.dailyMoods.find(m => m.date === auj);
-        
-        if (!todayMood) return null;
-        
-        // Si énergie basse ET motivation basse
-        if (todayMood.energy === 'low' && todayMood.motivation === 'Basse') {
-            return {
-                type: 'warning',
-                title: '🔋 Mode Survie Activé',
-                desc: `Énergie et motivation basses aujourd'hui. Focus sur l'essentiel : mission critique + protéines.`,
-                action: 'Voir plan minimum',
-                handler: 'showMinimalPlan'
-            };
-        }
-        
-        return null;
-    }
-    
+    // ===== COACH LOGIQUE - ANALYSE EN TEMPS RÉEL =====
+
     function getCoachAlerts() {
         const alerts = [];
-        
-        const moodAlert = analyzeTodayMood();
-        if (moodAlert) alerts.push(moodAlert);
-        
-        const proteinAlert = analyzeProteinConsistency();
-        if (proteinAlert) alerts.push(proteinAlert);
-        
-        const disciplineAlert = analyzeDisciplineConsistency();
-        if (disciplineAlert) alerts.push(disciplineAlert);
-        
-        const journalAlert = analyzeJournalPatterns();
-        if (journalAlert) alerts.push(journalAlert);
-        
-        // Le weight alert est désactivé pour l'instant (nécessite tracking quotidien du poids)
-        
+        const auj = new Date().toLocaleDateString();
+        const heures = new Date().getHours();
+
+        // --- DONNÉES DU JOUR ---
+        const todayTasks = db.tasks.filter(t => t.d === auj);
+        const doneTasks = todayTasks.filter(t => t.done);
+        const totalTasks = todayTasks.length;
+        const doneCount = doneTasks.length;
+        const pctMissions = totalTasks > 0 ? Math.round((doneCount / totalTasks) * 100) : 0;
+
+        const targetP = Math.round(db.weight * (db.goal === 'pdm' ? 2.2 : 1.8));
+        const logs = db.repas.filter(r => r.d === auj);
+        const totP = logs.reduce((s, r) => s + r.p, 0);
+        const pctProt = Math.round((totP / targetP) * 100);
+
+        const todayMood = db.dailyMoods ? db.dailyMoods.find(m => m.date === auj) : null;
+
+        // --- HISTORIQUE ---
+        const getDaysBack = (n) => [...Array(n)].map((_, i) => {
+            const d = new Date(); d.setDate(d.getDate() - i); return d.toLocaleDateString();
+        });
+
+        // === FEEDBACK POSITIF (priorité haute) ===
+
+        // Toutes les missions faites
+        if (totalTasks >= 3 && doneCount === totalTasks) {
+            alerts.push({
+                type: 'success',
+                title: '🏆 Toutes les missions complétées !',
+                desc: `${doneCount}/${totalTasks} missions terminées. Tu es une machine aujourd'hui.`
+            });
+        }
+
+        // Mission critique faite
+        if (db.critTask && db.critDone) {
+            alerts.push({
+                type: 'success',
+                title: '✅ Mission critique terminée',
+                desc: `"${db.critTask}" est bouclée. L'essentiel est fait, le reste c'est du bonus.`
+            });
+        }
+
+        // Protéines atteintes
+        if (pctProt >= 100) {
+            alerts.push({
+                type: 'success',
+                title: '💪 Objectif protéines atteint',
+                desc: `${totP}g / ${targetP}g (${pctProt}%). Tes muscles te remercient.`
+            });
+        }
+
+        // Belle streak
+        const streak = calculateStreak();
+        if (streak >= 3) {
+            alerts.push({
+                type: 'success',
+                title: `🔥 Streak de ${streak} jours`,
+                desc: streak >= 7 ? `${streak} jours d'affilée. Tu es inarrêtable.` : `${streak} jours de discipline. Continue, ça devient une habitude.`
+            });
+        }
+
+        // Score élevé aujourd'hui
+        const score = calculateDisciplineScore();
+        if (score.total >= 80) {
+            alerts.push({
+                type: 'success',
+                title: '⭐ Journée d\'élite',
+                desc: `Score de ${score.total}/100. C'est le niveau Légende.`
+            });
+        }
+
+        // === ALERTES TEMPS RÉEL (jour en cours) ===
+
+        // Mission critique PAS faite et il est tard
+        if (db.critTask && !db.critDone && heures >= 16) {
+            alerts.push({
+                type: 'critical',
+                title: '🚨 Mission critique en attente',
+                desc: `"${db.critTask}" n'est toujours pas faite et il est ${heures}h. C'est ta priorité #1.`
+            });
+        }
+
+        // Missions en retard (après 18h, moins de 50% faites)
+        if (totalTasks >= 2 && pctMissions < 50 && heures >= 18) {
+            alerts.push({
+                type: 'warning',
+                title: '⏰ Missions en retard',
+                desc: `Seulement ${doneCount}/${totalTasks} missions faites (${pctMissions}%) et il est ${heures}h. Fonce sur l'essentiel.`
+            });
+        }
+
+        // Aucune mission ajoutée
+        if (totalTasks === 0 && heures >= 10) {
+            alerts.push({
+                type: 'warning',
+                title: '📋 Aucune mission aujourd\'hui',
+                desc: 'Tu n\'as pas encore défini tes missions. Une journée sans objectif est une journée perdue.'
+            });
+        }
+
+        // Protéines en retard (après midi, moins de 40%)
+        if (pctProt < 40 && heures >= 14) {
+            alerts.push({
+                type: 'warning',
+                title: '🍗 Protéines en retard',
+                desc: `${totP}g / ${targetP}g (${pctProt}%). Il te reste ${targetP - totP}g à atteindre.`
+            });
+        }
+
+        // Mode survie : énergie + motivation basses
+        if (todayMood && todayMood.energy === 'low' && todayMood.motivation === 'Basse') {
+            alerts.push({
+                type: 'warning',
+                title: '🔋 Mode Survie',
+                desc: 'Énergie et motivation basses. Focus uniquement sur : mission critique + protéines. Le reste peut attendre.'
+            });
+        }
+
+        // === ANALYSE TENDANCES (historique) ===
+
+        // Protéines insuffisantes 2+ jours
+        const last3Days = getDaysBack(3);
+        let protFailDays = 0;
+        last3Days.forEach(date => {
+            const dayLogs = db.repas.filter(r => r.d === date);
+            const dayP = dayLogs.reduce((s, r) => s + r.p, 0);
+            if (dayP > 0 && dayP < targetP * 0.7) protFailDays++;
+        });
+        if (protFailDays >= 2) {
+            alerts.push({
+                type: 'warning',
+                title: '📉 Protéines insuffisantes (tendance)',
+                desc: `En-dessous de 70% de ton objectif sur ${protFailDays} des 3 derniers jours. Ajoute un shaker ou du poulet.`
+            });
+        }
+
+        // Discipline en baisse sur 5 jours
+        if (db.disciplineHistory && db.disciplineHistory.length >= 3) {
+            const last5Days = getDaysBack(5);
+            let lowDays = 0;
+            last5Days.forEach(date => {
+                const record = db.disciplineHistory.find(h => h.date === date);
+                if (record && record.score < 50) lowDays++;
+            });
+            if (lowDays >= 3) {
+                alerts.push({
+                    type: 'critical',
+                    title: '🔴 Discipline en chute',
+                    desc: `Score < 50% sur ${lowDays} des 5 derniers jours. Réduis à 3 missions max et reconcentre-toi.`
+                });
+            }
+        }
+
+        // Journal : stress ou énergie basse récurrents
+        if (db.guidedJournals && db.guidedJournals.length >= 3) {
+            const last7Days = getDaysBack(7);
+            const recentJournals = db.guidedJournals.filter(j => last7Days.includes(j.date));
+            const tagCount = {};
+            recentJournals.forEach(j => {
+                if (j.tags) j.tags.forEach(tag => { tagCount[tag] = (tagCount[tag] || 0) + 1; });
+            });
+
+            if (tagCount['stress'] >= 3) {
+                alerts.push({
+                    type: 'warning',
+                    title: '😰 Stress récurrent',
+                    desc: `Stress noté ${tagCount['stress']} fois en 7 jours. Respire (4s inspire, 4s retiens, 6s expire) et priorise.`
+                });
+            }
+            if (tagCount['energy'] >= 3) {
+                alerts.push({
+                    type: 'warning',
+                    title: '⚡ Énergie basse récurrente',
+                    desc: `Énergie basse ${tagCount['energy']} fois cette semaine. Vérifie ton sommeil, hydratation et alimentation.`
+                });
+            }
+        }
+
         return alerts;
     }
-    
-    function showProteinPlan() {
-        const targetP = Math.round(db.weight * (db.goal === 'pdm' ? 2.2 : 1.8));
-        const plan = `📋 PLAN RATTRAPAGE PROTÉINES
 
-🎯 Objectif: ${targetP}g/jour
-
-💪 SOURCES RAPIDES:
-• Shaker whey: 25g (+120 kcal)
-• 200g poulet: 54g (+330 kcal)
-• 4 œufs: 24g (+280 kcal)
-• 200g skyr: 20g (+120 kcal)
-
-✅ STRATÉGIE:
-1. Shaker au réveil
-2. Protéines à chaque repas
-3. Collation riche (skyr/œufs)
-
-Tu peux y arriver ! 💪`;
-        
-        alert(plan);
-    }
-    
-    function showResetSuggestion() {
-        const auj = new Date().toLocaleDateString();
-        const todayTasks = db.tasks.filter(t => t.d === auj);
-        
-        const suggestion = `🎯 RESET OBJECTIFS
-
-Actuellement: ${todayTasks.length} missions/jour
-
-💡 CONSEIL:
-Réduis à 3-5 missions MAXIMUM.
-Mieux vaut réussir 3 tâches importantes que rater 10.
-
-✅ GARDE:
-• Mission critique
-• Objectif protéines
-• 1-2 tâches essentielles
-
-❌ ENLÈVE:
-• Tâches secondaires
-• "Nice to have"
-
-La discipline se construit sur des victoires régulières ! 🏆`;
-        
-        alert(suggestion);
-    }
-    
-    function showEnergyRecommendations() {
-        const plan = `⚡ PLAN ÉNERGIE
-
-Tu notes souvent "Énergie basse". Checklist des bases :
-
-😴 SOMMEIL:
-• 7-9h par nuit minimum
-• Couché avant minuit
-• Chambre fraîche et noire
-
-🍽️ NUTRITION:
-• Protéines à chaque repas
-• Hydratation (2L eau/jour)
-• Éviter sucres rapides
-
-💪 MOUVEMENT:
-• 10 min marche matin
-• Étirements quotidiens
-• Séances pas trop longues
-
-🧠 MENTAL:
-• Pause écran 1h avant dodo
-• Journaling le soir
-• Gratitude x3 choses/jour
-
-L'énergie se construit sur les fondations ! 🔋`;
-        
-        alert(plan);
-    }
-    
-    function showStressStrategies() {
-        const strategies = `🧘 GESTION DU STRESS
-
-Niveau de stress élevé détecté. Outils immédiats :
-
-🫁 RESPIRATION (2 min):
-• Inspire 4 sec
-• Retiens 4 sec
-• Expire 6 sec
-• Répète x5
-
-📝 BRAIN DUMP:
-• Note TOUT ce qui stresse
-• Identifie ce qui est contrôlable
-• Agis sur 1 chose aujourd'hui
-
-🎯 PRIORISATION:
-• Si tout est urgent, rien ne l'est
-• Choisis 1 priorité absolue
-• Le reste peut attendre
-
-💤 RÉCUPÉRATION:
-• Le stress épuise
-• Autorise-toi du repos
-• Ce n'est pas de la faiblesse
-
-Tu gères la tempête. Un pas à la fois. 💪`;
-        
-        alert(strategies);
-    }
-    
-    function showMinimalPlan() {
-        const plan = `🔋 MODE SURVIE
-
-Énergie + motivation basses aujourd'hui.
-Pas de panique. Plan minimum :
-
-✅ FAIRE ABSOLUMENT:
-1. Mission critique (la seule)
-2. Atteindre protéines
-3. Boire 2L eau
-
-❌ OUBLIE LE RESTE:
-• Les autres missions
-• L'optimisation parfaite
-• La performance maximale
-
-💡 MINDSET:
-"Aujourd'hui, je garde juste le cap.
-Demain sera différent."
-
-Un jour médiocre exécuté > 
-Un jour parfait planifié
-
-Avance. Même lentement. 🐢`;
-        
-        alert(plan);
-    }
-    
     function updateCoachUI() {
         const alerts = getCoachAlerts();
         const alertsContainer = document.getElementById('coachAlerts');
         const badge = document.getElementById('coachBadge');
-        
+
+        const successAlerts = alerts.filter(a => a.type === 'success');
+        const problemAlerts = alerts.filter(a => a.type !== 'success');
+
         if (alerts.length === 0) {
-            alertsContainer.innerHTML = '<div class="coach-empty">Tout est sous contrôle !<br>Continue comme ça, champion.</div>';
-            badge.innerText = 'AUCUN CONSEIL';
+            alertsContainer.innerHTML = '<div class="coach-empty">Tout roule. Continue comme ça.</div>';
+            badge.innerText = 'RAS';
             badge.style.background = 'rgba(0,255,65,0.2)';
             badge.style.borderColor = 'var(--neon)';
             badge.style.color = 'var(--neon)';
         } else {
-            badge.innerText = `${alerts.length} CONSEIL${alerts.length > 1 ? 'S' : ''}`;
-            badge.style.background = 'rgba(255,152,0,0.2)';
-            badge.style.borderColor = '#ff9800';
-            badge.style.color = '#ff9800';
-            
-            alertsContainer.innerHTML = alerts.map(alert => `
-                <div class="coach-alert ${alert.type}">
-                    <div class="coach-alert-title">${alert.title}</div>
-                    <div class="coach-alert-desc">${alert.desc}</div>
-                    <div class="coach-action" onclick="${alert.handler}()">${alert.action}</div>
+            // Compteur : succès en vert, problèmes en orange
+            const totalProblems = problemAlerts.length;
+            const totalSuccess = successAlerts.length;
+
+            if (totalProblems > 0) {
+                badge.innerText = `${totalProblems} ALERTE${totalProblems > 1 ? 'S' : ''}`;
+                badge.style.background = 'rgba(255,152,0,0.2)';
+                badge.style.borderColor = '#ff9800';
+                badge.style.color = '#ff9800';
+            } else {
+                badge.innerText = `${totalSuccess} BRAVO`;
+                badge.style.background = 'rgba(0,255,65,0.2)';
+                badge.style.borderColor = 'var(--neon)';
+                badge.style.color = 'var(--neon)';
+            }
+
+            // Afficher succès d'abord, puis alertes
+            alertsContainer.innerHTML = [...successAlerts, ...problemAlerts].map(a => `
+                <div class="coach-alert ${a.type}" style="${a.type === 'success' ? 'border-left-color: var(--neon); background: rgba(0,255,65,0.05);' : ''}">
+                    <div class="coach-alert-title" style="${a.type === 'success' ? 'color: var(--neon);' : ''}">${a.title}</div>
+                    <div class="coach-alert-desc">${a.desc}</div>
                 </div>
             `).join('');
         }
