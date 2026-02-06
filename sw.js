@@ -7,8 +7,8 @@ self.addEventListener('message', (event) => {
     setTimeout(() => {
       self.registration.showNotification(title, {
         body: body,
-        icon: 'logo.png',
-        badge: 'logo.png',
+        icon: 'Logo.png',
+        badge: 'Logo.png',
         vibrate: [200, 100, 200],
         tag: 'elite-tracker-' + Date.now()
       });

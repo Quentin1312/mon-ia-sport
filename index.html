@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELITE TRACKER - QUENTIN V14 DISCIPLINE</title>
-    <link rel="apple-touch-icon" href="logo.png">
-    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="apple-touch-icon" href="Logo.png">
+    <link rel="icon" type="image/png" href="Logo.png">
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#00ff41">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -460,15 +460,27 @@
             <div id="tList"></div>
             <div style="display:flex; gap:10px; margin-top:10px"><input type="text" id="tIn" placeholder="Nouvel objectif..." style="margin:0"><button class="btn" onclick="addT()" style="width:60px">+</button></div>
         </div>
-        <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span class="label">Sagesse ELITE</span>
-                <button onclick="regenererMot()" style="background:transparent; border:1px solid var(--neon); color:var(--neon); padding:4px 8px; border-radius:6px; cursor:pointer; font-size:0.65rem;" title="Nouveau mot">🔄</button>
+        <div style="background: linear-gradient(135deg, rgba(138,43,226,0.06) 0%, rgba(0,209,255,0.06) 100%); border: 2px solid rgba(138,43,226,0.3); border-radius: 20px; padding: 18px; margin-bottom: 15px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px;">
+                <span style="font-size: 0.7rem; font-weight: 900; color: #8a2be2; text-transform: uppercase; letter-spacing: 2px;">💎 Sagesse ELITE</span>
             </div>
-            <p id="mTxt" style="font-size: 0.85rem; color: #ccc; margin: 10px 0;"></p>
-            <div style="display:flex; align-items:center; gap:10px;">
-                <div id="qBox" style="border-left: 2px solid var(--blue); padding-left: 12px; font-style: italic; color: #777; font-size: 0.8rem; flex:1;"></div>
-                <button onclick="regenererCitation()" style="background:transparent; border:1px solid var(--blue); color:var(--blue); padding:6px 10px; border-radius:8px; cursor:pointer; font-size:0.7rem; white-space:nowrap;" title="Nouvelle citation">🔄 Nouvelle</button>
+
+            <!-- Mot du jour -->
+            <div style="background: rgba(0,0,0,0.3); border-radius: 14px; padding: 14px; margin-bottom: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                    <span style="font-size: 0.6rem; font-weight: 900; color: var(--neon); text-transform: uppercase; letter-spacing: 1px;">📖 Mot du jour</span>
+                    <button onclick="regenererMot()" style="background:rgba(0,255,65,0.1); border:1px solid var(--neon); color:var(--neon); padding:4px 10px; border-radius:8px; cursor:pointer; font-size:0.6rem; font-weight:700;">🔄 Autre</button>
+                </div>
+                <p id="mTxt" style="font-size: 0.85rem; color: #ccc; margin: 0; line-height: 1.5;"></p>
+            </div>
+
+            <!-- Citation du jour -->
+            <div style="background: rgba(0,0,0,0.3); border-radius: 14px; padding: 14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+                    <span style="font-size: 0.6rem; font-weight: 900; color: var(--blue); text-transform: uppercase; letter-spacing: 1px;">💬 Citation du jour</span>
+                    <button onclick="regenererCitation()" style="background:rgba(0,209,255,0.1); border:1px solid var(--blue); color:var(--blue); padding:4px 10px; border-radius:8px; cursor:pointer; font-size:0.6rem; font-weight:700;">🔄 Autre</button>
+                </div>
+                <div id="qBox" style="border-left: 3px solid var(--blue); padding-left: 14px; font-style: italic; color: #aaa; font-size: 0.85rem; line-height: 1.5;"></div>
             </div>
         </div>
         
@@ -518,55 +530,68 @@
     let dailyQuoteCache = null;
     let lastQuoteDate = null;
 
+    const THEMES_CITATIONS = [
+        "la vie et les choix qu'on fait",
+        "le courage et sortir de sa zone de confort",
+        "la patience et la construction sur le long terme",
+        "l'échec comme leçon et le rebond",
+        "la confiance en soi et croire en ses rêves",
+        "le temps qui passe et l'urgence d'agir",
+        "la solitude du parcours et la fierté personnelle",
+        "l'ambition et voir grand",
+        "la gratitude et apprécier le chemin",
+        "la liberté et l'indépendance d'esprit",
+        "la créativité et penser différemment",
+        "le travail silencieux qui finit par payer",
+        "se relever après une chute",
+        "la force mentale face à l'adversité",
+        "la simplicité et l'essentiel dans la vie"
+    ];
+
     async function genererCitationIA() {
         const today = new Date().toDateString();
-        
-        // Si on a déjà une citation pour aujourd'hui, on la retourne
+
         if (dailyQuoteCache && lastQuoteDate === today) {
             return dailyQuoteCache;
         }
 
-        // Sinon, on demande à l'IA
+        const theme = THEMES_CITATIONS[Math.floor(Math.random() * THEMES_CITATIONS.length)];
+
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt: "Génère UNE citation motivante courte (maximum 15 mots) sur la discipline, le sport, la persévérance ou le dépassement de soi. Réponds UNIQUEMENT avec la citation, sans guillemets, sans préambule, sans explication." 
+                body: JSON.stringify({
+                    prompt: `Génère UNE citation inspirante et originale (maximum 20 mots) sur le thème : ${theme}. La citation peut être inventée ou d'un auteur célèbre (philosophe, entrepreneur, artiste, sportif, écrivain...). Si c'est d'un auteur, ajoute "— Prénom Nom" à la fin. Réponds UNIQUEMENT avec la citation, sans guillemets, sans préambule.`
                 })
             });
 
             const data = await response.json();
-            
+
             if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
                 const citation = data.candidates[0].content.parts[0].text.trim();
-                // Nettoyer la citation (enlever guillemets si présents)
-                const cleanQuote = citation.replace(/^["']|["']$/g, '').trim();
-                
-                // Sauvegarder en cache
+                const cleanQuote = citation.replace(/^["«»']|["«»']$/g, '').trim();
+
                 dailyQuoteCache = cleanQuote;
                 lastQuoteDate = today;
-                
-                // Sauvegarder dans localStorage pour persistance
+
                 localStorage.setItem('dailyQuote', cleanQuote);
                 localStorage.setItem('dailyQuoteDate', today);
-                
+
                 return cleanQuote;
             }
         } catch (error) {
             console.error("Erreur génération citation:", error);
         }
-        
-        // En cas d'erreur, utiliser une citation par défaut
-        return MOTIVATION[new Date().getDate() % MOTIVATION.length];
+
+        return MOTIVATION[Math.floor(Math.random() * MOTIVATION.length)];
     }
 
-    // Charger la citation sauvegardée au démarrage
     function loadSavedQuote() {
         const savedQuote = localStorage.getItem('dailyQuote');
         const savedDate = localStorage.getItem('dailyQuoteDate');
         const today = new Date().toDateString();
-        
+
         if (savedQuote && savedDate === today) {
             dailyQuoteCache = savedQuote;
             lastQuoteDate = savedDate;
@@ -575,15 +600,15 @@
         return null;
     }
 
-    // Fonction pour régénérer manuellement une citation
     async function regenererCitation() {
         const qBoxEl = document.getElementById('qBox');
-        qBoxEl.innerText = '"Génération d\'une nouvelle citation..."';
-        
-        // Réinitialiser le cache pour forcer une nouvelle génération
+        qBoxEl.innerText = 'Nouvelle citation en cours...';
+
         dailyQuoteCache = null;
         lastQuoteDate = null;
-        
+        localStorage.removeItem('dailyQuote');
+        localStorage.removeItem('dailyQuoteDate');
+
         const newQuote = await genererCitationIA();
         qBoxEl.innerText = `"${newQuote}"`;
     }
@@ -592,40 +617,60 @@
     let dailyWordCache = null;
     let lastWordDate = null;
 
+    const THEMES_MOTS = [
+        "psychologie ou développement personnel",
+        "philosophie ou sagesse ancienne",
+        "science ou biologie humaine",
+        "économie ou business",
+        "nutrition ou santé",
+        "sport ou performance physique",
+        "histoire ou culture générale",
+        "technologie ou innovation",
+        "art ou créativité",
+        "communication ou relations humaines",
+        "leadership ou management",
+        "astronomie ou nature",
+        "médecine ou bien-être",
+        "littérature ou écriture",
+        "stratégie ou prise de décision"
+    ];
+
     async function genererMotIA() {
         const today = new Date().toDateString();
-        
+
         if (dailyWordCache && lastWordDate === today) {
             return dailyWordCache;
         }
+
+        const theme = THEMES_MOTS[Math.floor(Math.random() * THEMES_MOTS.length)];
 
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    prompt: "Génère UN mot du vocabulaire du sport/fitness/nutrition/discipline avec sa définition courte (max 20 mots). Format EXACT : MOT EN MAJUSCULES : définition claire. Exemple : CATABOLISME : Processus de dégradation des tissus musculaires. Réponds UNIQUEMENT avec le mot et sa définition, sans autre texte." 
+                body: JSON.stringify({
+                    prompt: `Génère UN mot intéressant et peu connu du domaine : ${theme}. Donne sa définition claire et concise (max 20 mots). Format EXACT : MOT EN MAJUSCULES : définition. Exemple : SÉRENDIPITÉ : Découverte heureuse faite par hasard. Réponds UNIQUEMENT avec le mot et sa définition, rien d'autre.`
                 })
             });
 
             const data = await response.json();
-            
+
             if (data.candidates && data.candidates[0]?.content?.parts?.[0]?.text) {
                 const wordDef = data.candidates[0].content.parts[0].text.trim();
-                
+
                 dailyWordCache = wordDef;
                 lastWordDate = today;
-                
+
                 localStorage.setItem('dailyWord', wordDef);
                 localStorage.setItem('dailyWordDate', today);
-                
+
                 return wordDef;
             }
         } catch (error) {
             console.error("Erreur génération mot:", error);
         }
-        
-        const word = DICT[new Date().getDate() % DICT.length];
+
+        const word = DICT[Math.floor(Math.random() * DICT.length)];
         return `${word.w} : ${word.d}`;
     }
 
@@ -633,7 +678,7 @@
         const savedWord = localStorage.getItem('dailyWord');
         const savedDate = localStorage.getItem('dailyWordDate');
         const today = new Date().toDateString();
-        
+
         if (savedWord && savedDate === today) {
             dailyWordCache = savedWord;
             lastWordDate = savedDate;
@@ -644,16 +689,17 @@
 
     async function regenererMot() {
         const mTxtEl = document.getElementById('mTxt');
-        mTxtEl.innerHTML = 'Génération d\'un nouveau mot...';
-        
+        mTxtEl.innerHTML = 'Nouveau mot en cours...';
+
         dailyWordCache = null;
         lastWordDate = null;
-        
+        localStorage.removeItem('dailyWord');
+        localStorage.removeItem('dailyWordDate');
+
         const newWord = await genererMotIA();
-        // Parser le mot pour formater correctement
         const parts = newWord.split(' : ');
-        if (parts.length === 2) {
-            mTxtEl.innerHTML = `<b style="color:var(--neon)">${parts[0]}</b> : ${parts[1]}`;
+        if (parts.length >= 2) {
+            mTxtEl.innerHTML = `<b style="color:var(--neon)">${parts[0]}</b> : ${parts.slice(1).join(' : ')}`;
         } else {
             mTxtEl.innerHTML = newWord;
         }
